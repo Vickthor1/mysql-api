@@ -9,6 +9,12 @@ class ProductSearchService
 {
     public function search(string $query, string $origin = '', string $sort = '')
     {
+        $query = trim($query);
+
+        if ($query === '') {
+            return collect();
+        }
+
         // 1. BUSCA NO BANCO LOCAL
         $local = collect();
         if ($origin !== 'external') {

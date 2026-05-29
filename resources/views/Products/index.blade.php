@@ -2,15 +2,20 @@
 
 @section('content')
 
+@php
+    $query = $query ?? '';
+    $products = collect($results ?? $products ?? []);
+@endphp
+
 {{-- TÍTULO + BUSCA MOBILE --}}
 <div class="mb-6">
     <h2 class="text-2xl font-extrabold text-gray-800 mb-1">Produtos</h2>
     <p class="text-sm text-gray-400">
-        @if($query)
+        @if($query !== '')
             Resultados para <span class="font-semibold text-gray-600">"{{ $query }}"</span>
-            &bull; {{ count($products) }} encontrados
+            &bull; {{ $products->count() }} encontrados
         @else
-            {{ count($products) }} produtos disponíveis
+            {{ $products->count() }} produtos disponíveis
         @endif
     </p>
 </div>
@@ -63,7 +68,7 @@
 </form>
 
 {{-- LISTA DE PRODUTOS --}}
-@if(count($products) === 0)
+@if($products->count() === 0)
     <div class="text-center py-20 text-gray-400">
         <div class="text-5xl mb-4">🔍</div>
         <p class="font-semibold text-lg">Nenhum produto encontrado</p>
@@ -82,7 +87,7 @@
                 @if(!empty($product['image']))
                     <img
                         src="{{ $product['image'] }}"
-                        alt="{{ $product['name'] }}"
+                        alt="{{ $product['name'] ?? 'Produto' }}"
                         class="h-full w-full object-contain p-3"
                         loading="lazy"
                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
@@ -124,7 +129,7 @@
             {{-- CONTEÚDO --}}
             <div class="p-4 flex flex-col flex-1">
                 <h3 class="font-bold text-gray-800 text-sm leading-snug line-clamp-2 flex-1">
-                    {{ $product['name'] }}
+                    {{ $product['name'] ?? 'Produto sem nome' }}
                 </h3>
 
                 <div class="mt-3">

@@ -48,7 +48,13 @@ class ProductController extends Controller
             ]);
         }
 
-        return view('products.index', compact('products', 'query', 'sort', 'origin'));
+        return view('products.index', [
+            'products' => $products,
+            'results'  => $products,
+            'query'    => $query,
+            'sort'     => $sort,
+            'origin'   => $origin,
+        ]);
     }
 
     public function index(Request $request)
