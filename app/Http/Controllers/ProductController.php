@@ -51,14 +51,50 @@ class ProductController extends Controller
         return view('products.index', compact('products', 'query', 'sort', 'origin'));
     }
 
+    public function index(Request $request)
+    {
+        $query  = $request->input('q', '');
+        $sort   = $request->input('sort', '');
+        $origin = $request->input('origin', '');
+
+        if ($query !== '') {
+            $products = app(ProductSearchService::class)->search($query, $origin, $sort);
+        } else {
+            $dbQuery = Product::query();
+
+            if ($origin === 'internal') {
+                $dbQuery->where('is_external', false);
+            } elseif ($origin === 'external') {
+                $dbQuery->where('is_external', true);
+            }
+
+            if ($sort === 'price_asc') {
+                $dbQuery->orderBy('price', 'asc');
+            } elseif ($sort === 'price_desc') {
+                $dbQuery->orderBy('price', 'desc');
+            } else {
+                $dbQuery->latest();
+            }
+
+            $products = $dbQuery->get()->map(fn($p) => [
+                'name'        => $p->name,
+                'price'       => $p->price,
+                'image'       => $p->image_url,
+                'source'      => $p->is_external ? 'external' : 'local',
+                'is_external' => $p->is_external,
+            ]);
+        }
+
+        return response()->json($products);
+    }
+
     // FORMULÁRIO DE CADASTRO
     public function create()
     {
         return view('products.create');
     }
 
-    // SALVAR PRODUTO MANUAL (com suporte a imagem por URL)
-    public function webStore(Request $request)
+    public function store(Request $request)
     {
         $request->validate([
             'name'  => 'required|string|max:255',
@@ -66,7 +102,7 @@ class ProductController extends Controller
             'image' => 'nullable|url',
         ]);
 
-        Product::create([
+        $product = Product::create([
             'name'        => $request->name,
             'price'       => $request->price,
             'stock'       => 10,
@@ -74,14 +110,28 @@ class ProductController extends Controller
             'image'       => $request->image ?: null,
         ]);
 
+        if ($request->wantsJson()) {
+            return response()->json($product, 201);
+        }
+
         return redirect('/products')->with('success', 'Produto cadastrado com sucesso!');
+    }
+
+    // SALVAR PRODUTO MANUAL (com suporte a imagem por URL)
+    public function webStore(Request $request)
+    {
+        return $this->store($request);
     }
 
     // IMPORTAR DA API (Open Food Facts)
     public function import(OpenFoodService $service)
     {
         $data    = $service->getProduct('7891000100103');
-        $product = $data['product'] ?? [];
+        $product = $data['product'] ?? null;
+
+        if (empty($product) || empty($product['code'])) {
+            return redirect('/products')->with('error', 'Não foi possível importar o produto da Open Food Facts.');
+        }
 
         Product::create([
             'name'            => $product['product_name'] ?? 'Produto',
@@ -89,6 +139,7 @@ class ProductController extends Controller
             'stock'           => 20,
             'barcode'         => $product['code'] ?? null,
             'external_source' => 'open_food_facts',
+            'external_id'     => $product['code'] ?? null,
             'is_external'     => true,
             'image'           => $product['image_url'] ?? null,
         ]);

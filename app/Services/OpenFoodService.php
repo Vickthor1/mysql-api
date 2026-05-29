@@ -8,11 +8,20 @@ class OpenFoodService
 {
     public function getProduct($barcode)
     {
-        $response = Http::withoutVerifying()
-            ->get(
-                "https://world.openfoodfacts.org/api/v0/product/{$barcode}.json"
-            );
+        try {
+            $response = Http::withoutVerifying()
+                ->timeout(5)
+                ->get(
+                    "https://world.openfoodfacts.org/api/v0/product/{$barcode}.json"
+                );
 
-        return $response->json();
+            if (!$response->successful()) {
+                return [];
+            }
+
+            return $response->json() ?? [];
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 }

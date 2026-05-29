@@ -66,6 +66,14 @@
     </div>
     @endif
 
+    @if(session('error'))
+    <div class="max-w-6xl mx-auto px-4 pt-4">
+        <div class="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+            <span>⚠️</span> {{ session('error') }}
+        </div>
+    </div>
+    @endif
+
     <main class="max-w-6xl mx-auto px-4 py-6">
         @yield('content')
     </main>
