@@ -50,7 +50,7 @@
                 <a href="/products/create" class="px-3 py-1.5 rounded-full bg-green-600 text-white hover:bg-green-700 transition font-medium ml-1">
                     + Adicionar
                 </a>
-                <a href="/import-product" class="px-3 py-1.5 rounded-full border border-amber-300 text-amber-700 hover:bg-amber-100 transition font-medium ml-1" title="Importar da API">
+                <a href="/api-info" class="px-3 py-1.5 rounded-full border border-amber-300 text-amber-700 hover:bg-amber-100 transition font-medium ml-1" title="Sobre a API">
                     📦 API
                 </a>
             </nav>

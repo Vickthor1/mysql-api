@@ -11,4 +11,7 @@ Route::get('/', function () {
 Route::get('/products',        [SearchController::class, 'search']);
 Route::get('/products/create', [ProductController::class, 'create']);
 Route::post('/products',       [ProductController::class, 'webStore']);
+Route::get('/api-info', function () {
+    return view('api-info');
+});
 Route::get('/import-product',  [ProductController::class, 'import']);
