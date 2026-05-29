@@ -140,6 +140,9 @@
                     @else
                         <p class="text-gray-400 text-sm italic">Preço não disponível</p>
                     @endif
+                    @if(isset($product['stock']) && (int) $product['stock'] > 0)
+                        <p class="text-sm text-gray-500 mt-1">Estoque: {{ (int) $product['stock'] }}</p>
+                    @endif
                 </div>
             </div>
         </div>

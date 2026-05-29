@@ -25,7 +25,9 @@ class ProductSearchService
                 ->map(fn($p) => [
                     'name'        => $p->name,
                     'price'       => $p->price,
-                    'image'       => $p->image_url,
+                    'image'       => $p->image_url ?? $p->image ?? null,
+                    'stock'       => (int) ($p->stock ?? 0),
+                    'external_id' => $p->external_id ?? null,
                     'source'      => $p->is_external ? 'external' : 'local',
                     'is_external' => $p->is_external,
                 ]);
@@ -39,6 +41,50 @@ class ProductSearchService
 
         // 3. JUNTA TUDO
         $all = $local->merge($external);
+
+        // 3.1 AGREGAR/REMOVER DUPLICADOS — priorizar `external_id` quando disponível
+        $all = $all->groupBy(function ($p) {
+            if (!empty($p['external_id'])) {
+                return 'ext:' . trim((string) $p['external_id']);
+            }
+            $name = strtolower(trim($p['name'] ?? ''));
+            $img = trim((string)($p['image'] ?? ''));
+            return 'nm:' . md5($name . '|' . $img);
+        })->map(function ($group) {
+            $items = $group->values();
+            $name = $items->first()['name'] ?? '';
+
+            // imagem: priorizar a primeira imagem não vazia
+            $image = $items->pluck('image')->filter()->first() ?? null;
+
+            // preço: priorizar preço de item local quando existir, senão menor preço disponível
+            $local = $items->first(fn($i) => empty($i['is_external']) || $i['is_external'] === false);
+            if ($local) {
+                $price = $local['price'] ?? null;
+                $source = 'local';
+                $is_external = false;
+            } else {
+                $price = $items->pluck('price')->filter()->min() ?? null;
+                $source = 'external';
+                $is_external = true;
+            }
+
+            // estoque: soma de todos os estoques dos itens agrupados
+            $stock = $items->pluck('stock')->map(fn($s) => (int) $s)->sum();
+
+            // external_id: priorizar quando existir
+            $external_id = $items->pluck('external_id')->filter()->first() ?? null;
+
+            return [
+                'name'        => $name,
+                'price'       => $price,
+                'image'       => $image,
+                'stock'       => $stock,
+                'external_id' => $external_id,
+                'source'      => $source,
+                'is_external' => $is_external,
+            ];
+        })->values();
 
         // 4. APLICA ORDENAÇÃO
         if ($sort === 'price_asc') {
@@ -76,6 +122,8 @@ class ProductSearchService
                     'name'        => $p['product_name'] ?? 'Sem nome',
                     'price'       => $this->generateSmartPrice($p['product_name'] ?? ''),
                     'image'       => $p['image_front_small_url'] ?? null,
+                    'stock'       => 0,
+                    'external_id' => $p['code'] ?? null,
                     'source'      => 'external',
                     'is_external' => true,
                 ])

@@ -108,13 +108,34 @@ class ProductController extends Controller
             'image' => 'nullable|url',
         ]);
 
-        $product = Product::create([
-            'name'        => $request->name,
-            'price'       => $request->price,
-            'stock'       => 10,
-            'is_external' => false,
-            'image'       => $request->image ?: null,
-        ]);
+        // Regra: evitar duplicados — preferir barcode, fallback name
+        $barcode = $request->input('barcode');
+        $name = $request->input('name');
+
+        $existing = null;
+        if (!empty($barcode)) {
+            $existing = Product::where('barcode', $barcode)->first();
+        }
+        if (!$existing) {
+            $existing = Product::where('name', $name)->first();
+        }
+
+        $increment = 10; // estoque padrão para cadastro via formulário
+
+        if ($existing) {
+            $existing->stock = ((int) $existing->stock) + $increment;
+            $existing->save();
+            $product = $existing;
+        } else {
+            $product = Product::create([
+                'name'        => $request->name,
+                'price'       => $request->price,
+                'stock'       => $increment,
+                'is_external' => false,
+                'image'       => $request->image ?: null,
+                'barcode'     => $barcode ?: null,
+            ]);
+        }
 
         if ($request->wantsJson()) {
             return response()->json($product, 201);
@@ -139,16 +160,42 @@ class ProductController extends Controller
             return redirect('/products')->with('error', 'Não foi possível importar o produto da Open Food Facts.');
         }
 
-        Product::create([
-            'name'            => $product['product_name'] ?? 'Produto',
-            'price'           => $this->generateSmartPrice($product['product_name'] ?? ''),
-            'stock'           => 20,
-            'barcode'         => $product['code'] ?? null,
-            'external_source' => 'open_food_facts',
-            'external_id'     => $product['code'] ?? null,
-            'is_external'     => true,
-            'image'           => $product['image_url'] ?? null,
-        ]);
+        $barcode = $product['code'] ?? null;
+        $name = $product['product_name'] ?? null;
+
+        // procurar produto existente por barcode (preferencial) ou nome
+        $existing = null;
+        if (!empty($barcode)) {
+            $existing = Product::where('barcode', $barcode)->first();
+        }
+        if (!$existing && !empty($name)) {
+            $existing = Product::where('name', $name)->first();
+        }
+
+        $increment = 20; // estoque padrão para importação
+
+        if ($existing) {
+            $existing->stock = ((int) $existing->stock) + $increment;
+            // manter campos importantes se estiver vazio
+            if (empty($existing->external_source)) {
+                $existing->external_source = 'open_food_facts';
+            }
+            if (empty($existing->external_id) && !empty($barcode)) {
+                $existing->external_id = $barcode;
+            }
+            $existing->save();
+        } else {
+            Product::create([
+                'name'            => $product['product_name'] ?? 'Produto',
+                'price'           => $this->generateSmartPrice($product['product_name'] ?? ''),
+                'stock'           => $increment,
+                'barcode'         => $barcode ?? null,
+                'external_source' => 'open_food_facts',
+                'external_id'     => $barcode ?? null,
+                'is_external'     => true,
+                'image'           => $product['image_url'] ?? null,
+            ]);
+        }
 
         return redirect('/products')->with('success', 'Produto importado da API!');
     }
